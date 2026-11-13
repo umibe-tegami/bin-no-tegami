@@ -337,6 +337,35 @@
       </div>
     </div>
 
+    <!-- 灯台の手紙（コード入力） -->
+    <div class="overlay" id="lighthouseOverlay" style="display:none">
+      <div class="sheet paper-card" role="dialog" aria-modal="true" aria-label="灯台の明かりを灯す">
+        <p class="font-letter" style="margin:0;font-size:20px">灯台の明かりを灯す</p>
+        <p style="font-size:14px;color:var(--paper-text)">
+          灯台の手紙は、目印の明かりをつけて海を漂い続ける特別な手紙です。ふつうの手紙より、誰かの浜に流れ着きやすくなります。
+        </p>
+        <p style="font-size:14px;color:var(--paper-text)">
+          お持ちの「灯台コード」を入れると、この手紙に明かりが灯ります。コードは1通に1回だけ使えます。
+        </p>
+        <input type="text" id="lighthouseCode" placeholder="toudai-xxxxxx" autocomplete="off" autocapitalize="none" spellcheck="false"
+          style="width:100%;border-radius:10px;border:1px solid var(--border);padding:12px;font-size:16px;background:#fff;color:#33302a;min-height:48px" />
+        <p id="lighthouseMsg" style="margin:8px 0 0;font-size:13px;line-height:1.7;color:#b0405e"></p>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button type="button" id="lighthouseApplyBtn" class="font-letter"
+            style="flex:1;border-radius:999px;padding:12px;font-size:16px;background:#2e6b8a;color:#fff;min-height:48px">
+            明かりを灯す
+          </button>
+          <button type="button" id="lighthouseCancelBtn"
+            style="border-radius:999px;padding:12px 16px;font-size:14px;background:rgba(90,75,50,0.10);color:#5a5142;min-height:48px">
+            やめる
+          </button>
+        </div>
+        <p style="margin:12px 0 0;text-align:center;font-size:13px">
+          <a id="lighthouseBuy" href="#" target="_blank" rel="noopener" style="display:none;color:#2e6b8a">灯台コードを購入する</a>
+        </p>
+      </div>
+    </div>
+
     <!-- キャスト演出 -->
     <div class="cast-layer" id="castLayer" style="display:none" aria-hidden="true">
       <div class="cast-away" id="castBottle"></div>
@@ -352,6 +381,7 @@
       /* ================= 接続 ================= */
       var SUPABASE_URL = "https://xsznhznhumiukorxjfbz.supabase.co";
       var SUPABASE_KEY = "sb_publishable_x6awza5_RcmqFsBysqPlbA_LC7Wct6s";
+      var LIGHTHOUSE_BUY_URL = ""; /* 灯台コードの販売ページURL（決まったらここに入れる） */
       var sb = null;
       try {
         if (window.supabase) sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -865,6 +895,15 @@
             "沁みた " + stampCount(l, "shimita") + " ・ 元気が出た " + stampCount(l, "genki") + " ・ 泣いた " + stampCount(l, "naita"));
           stamps.style.cssText = "margin:4px 0 0;font-size:12px;color:var(--dim)";
           card.appendChild(stamps);
+          if (!l.lighthouse) {
+            var lhBtn = el("button", null, "灯台の明かりを灯す");
+            lhBtn.type = "button";
+            lhBtn.style.cssText = "margin-top:8px;border-radius:999px;padding:7px 14px;font-size:13px;background:var(--accent-soft);color:var(--accent);min-height:36px";
+            (function (letterId) {
+              lhBtn.addEventListener("click", function () { openLighthouse(letterId); });
+            })(l.id);
+            card.appendChild(lhBtn);
+          }
           list.appendChild(card);
         });
       }
@@ -1172,6 +1211,55 @@
       if (isFirstVisit) $("introOverlay").style.display = "";
       $("introCloseBtn").addEventListener("click", function () {
         $("introOverlay").style.display = "none";
+      });
+
+      /* ================= 灯台の手紙 ================= */
+      var lighthouseTargetId = null;
+      function openLighthouse(letterId) {
+        lighthouseTargetId = letterId;
+        $("lighthouseMsg").textContent = "";
+        $("lighthouseCode").value = "";
+        var buy = $("lighthouseBuy");
+        if (LIGHTHOUSE_BUY_URL) {
+          buy.href = LIGHTHOUSE_BUY_URL;
+          buy.style.display = "";
+        } else buy.style.display = "none";
+        $("lighthouseOverlay").style.display = "";
+      }
+      function closeLighthouse() {
+        $("lighthouseOverlay").style.display = "none";
+        lighthouseTargetId = null;
+      }
+      $("lighthouseCancelBtn").addEventListener("click", closeLighthouse);
+      $("lighthouseOverlay").addEventListener("click", function (e) {
+        if (e.target === $("lighthouseOverlay")) closeLighthouse();
+      });
+      $("lighthouseApplyBtn").addEventListener("click", function () {
+        if (!lighthouseTargetId) return;
+        var code = $("lighthouseCode").value || "";
+        var msg = $("lighthouseMsg");
+        var btn = $("lighthouseApplyBtn");
+        btn.disabled = true;
+        msg.textContent = "明かりを灯しています…";
+        rpc("apply_lighthouse", { p_token: token, p_letter_id: lighthouseTargetId, p_code: code }).then(function (res) {
+          btn.disabled = false;
+          var d = res && res.data;
+          if (res.error || !d) {
+            msg.textContent = "海とつながれませんでした。少し待って、もう一度試してみてください。";
+            return;
+          }
+          if (d.ok) {
+            closeLighthouse();
+            refreshMine();
+            return;
+          }
+          if (d.reason === "already") msg.textContent = "この手紙には、もう明かりが灯っています。";
+          else if (d.reason === "not_yours" || d.reason === "no_letter") msg.textContent = "その手紙には灯せませんでした。";
+          else msg.textContent = "そのコードは使えませんでした。入力が合っているか確かめてみてください。";
+        }).catch(function () {
+          btn.disabled = false;
+          msg.textContent = "海とつながれませんでした。少し待って、もう一度試してみてください。";
+        });
       });
 
       /* ================= 起動 ================= */
