@@ -1,0 +1,1193 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="data:," />
+    <title>瓶の手紙</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #efe7d3;
+        --surface: #fbf7ec;
+        --text: #2b2b26;
+        --dim: #6f6a5c;
+        --border: #ddd2ba;
+        --accent: #2e6b8a;
+        --accent-soft: rgba(46, 107, 138, 0.14);
+        --radius: 12px;
+        --paper: #f7f1e3;
+        --paper-text: #33302a;
+        --paper-dim: #8a8172;
+        --paper-faint: #7a7261;
+        --rose: #b0405e;
+        --rose-soft: rgba(209, 96, 122, 0.14);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #10161f;
+          --surface: #1b2431;
+          --text: #ece7da;
+          --dim: #9aa3ad;
+          --border: #2c3846;
+          --accent: #7fb8c9;
+          --accent-soft: rgba(127, 184, 201, 0.16);
+        }
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic", sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      button, [role="button"], select, summary, input:not([type="checkbox"], [type="radio"]) { min-height: 2rem; }
+      button { font: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+      button:disabled { cursor: default; }
+      .font-letter {
+        font-family: "Hiragino Mincho ProN", "Hiragino Mincho Pro", "YuMincho", "Yu Mincho", "Noto Serif JP", serif;
+      }
+      .sr-only {
+        position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+        overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+      }
+      .paper-card {
+        background:
+          repeating-linear-gradient(0deg, transparent, transparent 27px, rgba(120, 100, 60, 0.07) 28px),
+          var(--paper);
+        color: var(--paper-text);
+        box-shadow: 0 10px 30px rgba(20, 30, 40, 0.25);
+      }
+      .clamp2 {
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+      }
+
+      /* ---------- レイアウト ---------- */
+      .app { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
+      .main { margin: 0 auto; display: flex; min-height: 0; width: 100%; max-width: 768px; flex: 1; flex-direction: column; }
+      .below { display: flex; min-height: 0; flex: 1; flex-direction: column; gap: 8px; padding: 8px 12px 12px; }
+      .panels { display: grid; min-height: 0; flex: 1; grid-template-rows: 1fr 1fr; gap: 8px; }
+      @media (min-width: 640px) {
+        .panels { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
+      }
+      .panel {
+        display: flex; min-height: 0; flex-direction: column;
+        border-radius: var(--radius); padding: 12px;
+        background: var(--surface); border: 1px solid var(--border);
+      }
+      .panel h2 { margin: 0; display: flex; flex: none; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; }
+      .panel .count-badge {
+        border-radius: 999px; padding: 0 6px; font-size: 12px;
+        background: var(--accent-soft); color: var(--accent);
+      }
+      .panel .list { margin-top: 8px; min-height: 0; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 2px; }
+      .empty-note { padding: 16px 0; text-align: center; font-size: 14px; color: var(--dim); margin: 0; }
+
+      .card {
+        border-radius: var(--radius); padding: 12px;
+        background: var(--surface); border: 1px solid var(--border);
+      }
+      .card-btn { display: block; width: 100%; text-align: left; padding: 0; }
+      .lighthouse-badge {
+        display: inline-flex; align-items: center; gap: 4px;
+        border-radius: 999px; padding: 1px 8px; font-size: 11px;
+        background: rgba(214, 164, 32, 0.16); color: #8a6410;
+      }
+      .lighthouse-badge .dot {
+        width: 7px; height: 7px; border-radius: 999px; background: #e8b93c;
+        box-shadow: 0 0 6px rgba(232, 185, 60, 0.9);
+      }
+      @media (prefers-color-scheme: dark) {
+        .lighthouse-badge { color: #e8c86a; }
+      }
+
+      /* ---------- シーン ---------- */
+      .scene { position: relative; flex: none; overflow: hidden; height: 32dvh; min-height: 200px; }
+      .scene .sky { position: absolute; left: 0; right: 0; top: 0; height: 46%; }
+      .scene .sea { position: absolute; left: 0; right: 0; overflow: hidden; transition: top 2s ease, height 2s ease; }
+      .scene .sand { position: absolute; left: 0; right: 0; bottom: 0; overflow: hidden; transition: height 2s ease; }
+      .scene-label {
+        position: absolute; left: 16px; top: 12px; font-size: 14px; letter-spacing: 0.12em; z-index: 3;
+      }
+      .wave-svg-layer { position: absolute; left: 0; width: 200%; pointer-events: none; }
+      .wash-zone { position: absolute; left: 0; right: 0; bottom: 0; overflow: hidden; pointer-events: none; }
+      .wash-wave { position: absolute; left: 0; right: 0; top: 0; height: 82%; animation: wash-in 9s ease-in-out infinite; will-change: transform, opacity; }
+      .glint { position: absolute; border-radius: 999px; animation: glint 3.4s ease-in-out infinite; }
+      .foam-fleck { position: absolute; border-radius: 999px; background: #fff; animation: foam-fleck 7s ease-in-out infinite; }
+      .sheen { animation: sheen 9s ease-in-out infinite; }
+      .swash { animation: swash 5.5s ease-in-out infinite; }
+      .drift-slow { animation: drift-slow 9s ease-in-out infinite; }
+      .rain-layer {
+        position: absolute; inset: 0; pointer-events: none;
+        background-image: repeating-linear-gradient(105deg, transparent 0px, transparent 9px, rgba(230,240,248,0.5) 9px, rgba(230,240,248,0.5) 10px, transparent 10px, transparent 19px);
+        background-size: 60px 120px;
+        animation: rain-fall 0.55s linear infinite;
+      }
+      .bottle-btn {
+        position: absolute; display: flex; flex-direction: column; align-items: center;
+        min-height: 56px; min-width: 56px; padding: 0; z-index: 4;
+        animation: bob 3.6s ease-in-out infinite, bottle-glow 2.8s ease-in-out infinite;
+      }
+      .bottle-btn .tag {
+        margin-top: 2px; border-radius: 999px; padding: 2px 8px; font-size: 12px;
+        background: rgba(255, 252, 240, 0.88); color: #4a4234; white-space: nowrap;
+      }
+      .bottle-btn .tag.lighthouse { background: rgba(255, 244, 200, 0.92); color: #6d4d08; }
+      .empty-sea-text { position: absolute; left: 0; right: 0; text-align: center; font-size: 14px; z-index: 2; margin: 0; }
+
+      /* 波紋 */
+      .ripple-zone { position: absolute; pointer-events: none; z-index: 5; }
+      .ripple-ring {
+        position: absolute; left: 50%; top: 50%; border-radius: 999px;
+        border: 2px solid rgba(255, 255, 255, 0.85);
+        transform: translate(-50%, -50%);
+        animation: ripple-expand 2.6s ease-out forwards;
+      }
+      .ripple-msg {
+        position: absolute; left: 50%; top: 16%; transform: translateX(-50%);
+        z-index: 6; white-space: nowrap; max-width: 92%;
+        border-radius: 999px; padding: 6px 14px; font-size: 13px;
+        background: rgba(20, 34, 48, 0.55); color: #f4f1e6;
+        opacity: 0; transition: opacity 0.8s ease; pointer-events: none;
+      }
+      .ripple-msg.show { opacity: 1; }
+
+      /* ---------- モーダル ---------- */
+      .overlay {
+        position: fixed; inset: 0; z-index: 40; display: flex; align-items: flex-end; justify-content: center;
+        background: rgba(15, 22, 30, 0.55);
+      }
+      @media (min-width: 640px) { .overlay { align-items: center; } }
+      .sheet {
+        max-height: 86dvh; width: 100%; max-width: 512px; overflow-y: auto;
+        border-radius: 16px 16px 0 0; padding: 20px;
+        animation: rise-in 0.35s ease-out both;
+      }
+      @media (min-width: 640px) { .sheet { border-radius: 16px; } }
+      .chip-btn {
+        display: inline-flex; align-items: center; gap: 6px;
+        border-radius: 999px; padding: 8px 14px; font-size: 14px; min-height: 40px;
+      }
+      .stamp-btn[aria-pressed="true"] { outline: 2px solid var(--accent); outline-offset: 1px; }
+      .text-link { font-size: 12px; color: var(--paper-dim); text-decoration: underline; text-underline-offset: 3px; padding: 8px 4px; min-height: 36px; }
+
+      /* キャスト演出 */
+      .cast-layer { pointer-events: none; position: fixed; inset: 0; z-index: 50; background: rgba(20, 40, 60, 0.12); }
+      .cast-away { animation: cast-away 3s ease-in forwards; margin-left: 24px; margin-top: 26dvh; }
+
+      /* 導入 */
+      .intro-sheet { text-align: left; }
+      .intro-sheet p { line-height: 1.9; }
+
+      @keyframes wave-drift-a { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+      @keyframes wave-drift-b { from { transform: translateX(-50%); } to { transform: translateX(0); } }
+      .wave-a { animation: wave-drift-a 11s linear infinite; }
+      .wave-b { animation: wave-drift-b 17s linear infinite; }
+      @keyframes swash { 0%, 100% { transform: translateY(6px) scaleY(1); opacity: 0.55; } 50% { transform: translateY(-10px) scaleY(1.15); opacity: 0.95; } }
+      @keyframes bob { 0%, 100% { transform: translateY(0) rotate(-8deg); } 50% { transform: translateY(-7px) rotate(-3deg); } }
+      @keyframes bottle-glow { 0%, 100% { filter: drop-shadow(0 0 3px rgba(255, 250, 210, 0.5)); } 50% { filter: drop-shadow(0 0 12px rgba(255, 250, 210, 0.95)); } }
+      @keyframes cast-away {
+        0% { transform: translate(0, 0) rotate(-10deg) scale(1); opacity: 1; }
+        30% { transform: translate(18vw, 10px) rotate(4deg) scale(0.92); opacity: 1; }
+        70% { transform: translate(42vw, -2px) rotate(-6deg) scale(0.75); opacity: 0.9; }
+        100% { transform: translate(68vw, 6px) rotate(3deg) scale(0.55); opacity: 0; }
+      }
+      @keyframes rise-in { from { transform: translateY(14px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+      @keyframes drift-slow { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(10px); } }
+      @keyframes wash-in {
+        0% { transform: translateY(-48%); opacity: 0; }
+        10% { opacity: 1; }
+        40% { transform: translateY(42%); opacity: 1; }
+        56% { transform: translateY(46%); opacity: 1; }
+        86% { opacity: 0.85; }
+        100% { transform: translateY(-48%); opacity: 0; }
+      }
+      @keyframes glint { 0%, 100% { opacity: 0; transform: scaleX(0.55); } 50% { opacity: 0.9; transform: scaleX(1); } }
+      @keyframes foam-fleck { 0%, 100% { opacity: 0; } 25% { opacity: 0.85; } 65% { opacity: 0.3; } }
+      @keyframes sheen { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.65; } }
+      @keyframes rain-fall { from { background-position: 0 -120px; } to { background-position: -28px 120px; } }
+      @keyframes ripple-expand {
+        0% { width: 8px; height: 8px; opacity: 0.9; }
+        100% { width: 190px; height: 64px; opacity: 0; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .wave-a, .wave-b, .swash, .bottle-btn, .cast-away, .drift-slow, .wash-wave, .glint, .foam-fleck, .sheen, .ripple-ring { animation: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <main class="main">
+        <!-- 波打ち際 -->
+        <section class="scene" id="scene" aria-label="波打ち際">
+          <div class="sky" id="sky"></div>
+          <div class="sea" id="sea">
+            <div style="position:absolute;left:0;right:0;top:0;height:2px;background:rgba(255,255,255,0.45);filter:blur(1px)" aria-hidden="true"></div>
+            <div id="glints"></div>
+            <div class="wave-svg-layer wave-a" id="waveA" style="bottom:26px" aria-hidden="true"></div>
+            <div class="wave-svg-layer wave-b" id="waveB" style="bottom:8px" aria-hidden="true"></div>
+          </div>
+          <div class="sand" id="sand">
+            <div style="position:absolute;left:0;right:0;top:0;height:62%;background:linear-gradient(180deg, rgba(74,58,32,0.30) 0%, rgba(74,58,32,0.12) 55%, rgba(74,58,32,0) 100%)" aria-hidden="true"></div>
+            <div class="sheen" style="position:absolute;left:0;right:0;top:0;height:20px;background:linear-gradient(180deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0) 100%)" aria-hidden="true"></div>
+            <div id="flecks"></div>
+            <div class="swash" style="position:absolute;left:0;right:0;top:0;height:24px;border-radius:100%;background:rgba(255,255,255,0.75);filter:blur(3px)" aria-hidden="true"></div>
+          </div>
+          <div class="wash-zone" id="washZone" aria-hidden="true"></div>
+          <p class="scene-label font-letter" id="sceneLabel"></p>
+          <div class="ripple-zone" id="rippleZone" aria-hidden="true"></div>
+          <p class="ripple-msg font-letter" id="rippleMsg" role="status">今、世界のどこかであなたの手紙が読まれています。</p>
+          <p class="empty-sea-text" id="emptySeaText">いまは、波の音だけ。</p>
+          <div id="beachBottles"></div>
+        </section>
+
+        <div class="below">
+          <div style="display:flex;flex:none;align-items:center;justify-content:flex-end;gap:8px">
+            <button type="button" id="soundBtn" aria-pressed="false"
+              style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:4px 12px;font-size:12px;background:var(--surface);border:1px solid var(--border);color:var(--text);min-height:32px">
+              <span id="soundIcon"></span><span id="soundLabel">さざ波：止まっています</span>
+            </button>
+          </div>
+
+          <!-- 書く画面 -->
+          <div id="composer" class="paper-card" style="display:none;min-height:0;flex:1;overflow-y:auto;border-radius:var(--radius);padding:16px" aria-label="手紙を書く">
+            <p class="font-letter" style="margin:0;font-size:16px;color:var(--paper-faint)">どこかの誰かへ</p>
+            <label class="sr-only" for="letterBody">手紙の本文</label>
+            <textarea id="letterBody" rows="6" maxlength="300" placeholder="今日思ったことを、そのまま。"
+              class="font-letter"
+              style="margin-top:8px;width:100%;resize:none;background:transparent;border:none;outline:none;font-size:16px;line-height:2;color:var(--paper-text)"></textarea>
+            <div style="display:flex;align-items:center;justify-content:flex-end">
+              <span id="charCount" style="font-size:12px;color:var(--paper-dim)">0 / 300</span>
+            </div>
+            <p id="castError" style="display:none;margin:8px 0 0;font-size:14px;color:var(--rose)"></p>
+            <div style="margin-top:12px;display:flex;gap:8px">
+              <button type="button" id="castBtn" class="font-letter"
+                style="flex:1;border-radius:999px;padding:12px;font-size:16px;background:#2e6b8a;color:#fff;min-height:48px">
+                瓶に入れて、海に流す
+              </button>
+              <button type="button" id="cancelComposeBtn"
+                style="border-radius:999px;padding:12px 16px;font-size:14px;background:rgba(90,75,50,0.10);color:#5a5142;min-height:48px">
+                やめる
+              </button>
+            </div>
+            <p style="margin:10px 0 0;text-align:center;font-size:12px;line-height:1.8;color:var(--paper-dim)">
+              流した手紙は、知らない誰かの浜に流れ着きます。返事は来ません。その代わり、読まれたことと、いいねと、共感のひとことが届きます。個人情報は書かないでください。
+            </p>
+          </div>
+
+          <!-- ホーム -->
+          <div id="homeArea" style="display:flex;min-height:0;flex:1;flex-direction:column;gap:8px">
+            <button type="button" id="writeBtn" class="font-letter"
+              style="width:100%;flex:none;border-radius:var(--radius);padding:12px;font-size:18px;background:var(--accent);color:#fff;min-height:48px">
+              手紙を書いて、瓶で流す
+            </button>
+            <div class="panels">
+              <section class="panel" aria-label="流した手紙">
+                <h2 class="font-letter">流した手紙<span class="count-badge" id="mineCount" style="display:none"></span></h2>
+                <div class="list" id="mineList"></div>
+              </section>
+              <section class="panel" aria-label="棚の写し">
+                <h2 class="font-letter">棚の写し<span class="count-badge" id="shelfCount" style="display:none"></span></h2>
+                <div class="list" id="shelfList"></div>
+              </section>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- 手紙モーダル -->
+    <div class="overlay" id="letterOverlay" style="display:none">
+      <div class="sheet paper-card" role="dialog" aria-modal="true" aria-label="流れ着いた手紙" id="letterSheet"></div>
+    </div>
+
+    <!-- 棚の写しモーダル -->
+    <div class="overlay" id="shelfOverlay" style="display:none">
+      <div class="sheet paper-card" role="dialog" aria-modal="true" aria-label="棚の写し" id="shelfSheet"></div>
+    </div>
+
+    <!-- 初回の案内 -->
+    <div class="overlay" id="introOverlay" style="display:none">
+      <div class="sheet paper-card intro-sheet" role="dialog" aria-modal="true" aria-label="はじめの案内">
+        <p class="font-letter" style="margin:0;font-size:20px">瓶の手紙へ、ようこそ。</p>
+        <p style="font-size:14px;color:var(--paper-text)">
+          ここは、知らない人同士が瓶に手紙を入れて海に流し、届け合う浜辺です。名前もアカウントもいりません。あなたは匿名のまま遊べます。
+        </p>
+        <p style="font-size:14px;color:var(--paper-text)">
+          書いた手紙は、世界のどこかの、知らない誰かの浜に流れ着きます。だから、住所や本名などの個人情報は書かないでください。
+        </p>
+        <p style="font-size:14px;color:var(--paper-text)">
+          返事は来ない仕組みです。その代わり、手紙が読まれると波紋が届き、いいねや共感のひとことが返ってきます。
+        </p>
+        <button type="button" id="introCloseBtn" class="font-letter"
+          style="margin-top:8px;width:100%;border-radius:999px;padding:12px;font-size:16px;background:#2e6b8a;color:#fff;min-height:48px">
+          浜へ行く
+        </button>
+      </div>
+    </div>
+
+    <!-- キャスト演出 -->
+    <div class="cast-layer" id="castLayer" style="display:none" aria-hidden="true">
+      <div class="cast-away" id="castBottle"></div>
+      <p class="font-letter" style="position:absolute;left:0;right:0;text-align:center;font-size:16px;color:#33424f;top:44dvh;margin:0">
+        瓶は、潮に乗って出ていきました。
+      </p>
+    </div>
+
+    <p id="srStatus" class="sr-only" role="status"></p>
+
+    <script>
+      "use strict";
+      /* ================= 接続 ================= */
+      var SUPABASE_URL = "https://xsznhznhumiukorxjfbz.supabase.co";
+      var SUPABASE_KEY = "sb_publishable_x6awza5_RcmqFsBysqPlbA_LC7Wct6s";
+      var sb = null;
+      try {
+        if (window.supabase) sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      } catch (e) { sb = null; }
+
+      /* ================= 識別子（匿名トークン） ================= */
+      function makeUuid() {
+        if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+          var r = (Math.random() * 16) | 0;
+          var v = c === "x" ? r : (r & 0x3) | 0x8;
+          return v.toString(16);
+        });
+      }
+      var token = null;
+      var isFirstVisit = false;
+      try {
+        token = window.localStorage.getItem("bin_token");
+        if (!token) {
+          token = makeUuid();
+          window.localStorage.setItem("bin_token", token);
+          isFirstVisit = true;
+        }
+      } catch (e) {
+        token = makeUuid();
+        isFirstVisit = true;
+      }
+
+      /* ================= 状態 ================= */
+      var STAMPS = [
+        { type: "shimita", label: "沁みた" },
+        { type: "genki", label: "元気が出た" },
+        { type: "naita", label: "泣いた" },
+      ];
+      var state = {
+        beach: [],        // 浜に流れ着いた瓶（最大3）
+        queue: [],        // 浜がいっぱいの間の待ち行列
+        seenIds: {},      // このセッションで拾った手紙
+        opened: null,     // モーダルで開いている手紙
+        liked: {},        // いいね済み
+        stamped: {},      // スタンプ済み（letterId -> type）
+        keptIds: {},      // 棚にしまった手紙
+        reported: {},     // 通報済み
+        myLetters: [],
+        myIds: {},
+        shelf: [],
+        lastReadsTotal: null,
+        lastRippleAt: 0,
+        mineLoaded: false,
+        mineError: false,
+      };
+
+      function $(id) { return document.getElementById(id); }
+      function el(tag, cls, text) {
+        var n = document.createElement(tag);
+        if (cls) n.className = cls;
+        if (text != null) n.textContent = text;
+        return n;
+      }
+      function fmtDate(iso) {
+        if (!iso) return "";
+        try {
+          return new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(iso));
+        } catch (e) { return ""; }
+      }
+      function stampCount(letter, type) {
+        var c = letter && letter.stamp_counts;
+        if (typeof c === "string") { try { c = JSON.parse(c); } catch (e) { c = null; } }
+        var v = c && typeof c === "object" ? c[type] : 0;
+        return typeof v === "number" ? v : 0;
+      }
+      function normalizePicked(raw) {
+        if (!raw || raw.id == null) return null;
+        return {
+          id: raw.id,
+          body: typeof raw.body === "string" ? raw.body : "",
+          lighthouse: !!raw.lighthouse,
+          like_count: typeof raw.like_count === "number" ? raw.like_count : 0,
+          stamp_counts: raw.stamp_counts || {},
+        };
+      }
+
+      /* ================= 瓶アイコン ================= */
+      function bottleSvg(size, lighthouse) {
+        var lamp = lighthouse
+          ? '<circle cx="24" cy="6" r="3.2" fill="#f2c94c"/><circle cx="24" cy="6" r="6.5" fill="rgba(242,201,76,0.35)"/>'
+          : "";
+        var ribbon = lighthouse
+          ? '<path d="M28 12 l7 -3 l-1.5 6 l-4.5 1 z" fill="#c8546a"/>'
+          : "";
+        return (
+          '<svg width="' + size + '" height="' + size + '" viewBox="0 0 48 48" aria-hidden="true" focusable="false">' +
+          lamp +
+          '<g transform="rotate(24 24 24)">' +
+          '<rect x="20" y="3" width="8" height="6" rx="1.5" fill="#8a6b45"/>' +
+          '<path d="M21 9 h6 v6 c4 2.4 6 5.4 6 10 v11 a6 6 0 0 1 -6 6 h-6 a6 6 0 0 1 -6 -6 v-11 c0 -4.6 2 -7.6 6 -10 z" fill="rgba(148,205,180,0.75)" stroke="#3f7a63" stroke-width="1.6"/>' +
+          '<rect x="18.5" y="22" width="11" height="13" rx="1.5" fill="#f7f1e3"/>' +
+          '<line x1="20.5" y1="26" x2="27.5" y2="26" stroke="#b9ac8f" stroke-width="1.2"/>' +
+          '<line x1="20.5" y1="29.5" x2="27.5" y2="29.5" stroke="#b9ac8f" stroke-width="1.2"/>' +
+          '<line x1="20.5" y1="33" x2="25.5" y2="33" stroke="#b9ac8f" stroke-width="1.2"/>' +
+          "</g>" + ribbon + "</svg>"
+        );
+      }
+      function heartSvg(filled, size) {
+        return (
+          '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+          '<path d="M12 20.7C6.4 16.9 3 13.6 3 9.9 3 7.2 5 5 7.6 5c1.7 0 3.4.9 4.4 2.4C13 5.9 14.7 5 16.4 5 19 5 21 7.2 21 9.9c0 3.7-3.4 7-9 10.8z" fill="' +
+          (filled ? "#d1607a" : "none") + '" stroke="' + (filled ? "#d1607a" : "currentColor") + '" stroke-width="1.7"/></svg>'
+        );
+      }
+      function volumeSvg(on) {
+        var waves = on
+          ? '<path d="M14.5 9.2a4 4 0 0 1 0 5.6"/><path d="M17 6.8a7.4 7.4 0 0 1 0 10.4"/>'
+          : '<line x1="15" y1="9" x2="21" y2="15"/><line x1="21" y1="9" x2="15" y2="15"/>';
+        return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6.5 9H3v6h3.5L11 19z" fill="currentColor" stroke="none"/>' + waves + "</svg>";
+      }
+
+      /* ================= 空・天気・潮 ================= */
+      var PHASE_STYLE = {
+        morning: { sky: "linear-gradient(180deg,#ffe9c4 0%,#cfeaf2 70%)", sea: "linear-gradient(180deg,#a9d2de 0%,#74b1c2 38%,#4f97ad 72%,#5ea6b8 100%)", sand: "linear-gradient(180deg,#efdcb2 0%,#e6cf9e 100%)", label: "朝の海" },
+        day: { sky: "linear-gradient(180deg,#a8ddf2 0%,#e6f6fb 75%)", sea: "linear-gradient(180deg,#79bcd4 0%,#4399ba 40%,#2e7d9b 74%,#48a0ba 100%)", sand: "linear-gradient(180deg,#f2dfae 0%,#ecd49e 100%)", label: "昼の海" },
+        evening: { sky: "linear-gradient(180deg,#ff9e66 0%,#ffc98f 45%,#f7e3b8 100%)", sea: "linear-gradient(180deg,#9698b0 0%,#66779c 42%,#46618c 76%,#5d7699 100%)", sand: "linear-gradient(180deg,#e8c69c 0%,#dbb586 100%)", label: "夕方の海" },
+        night: { sky: "linear-gradient(180deg,#0a1830 0%,#274069 80%)", sea: "linear-gradient(180deg,#24425f 0%,#16304a 45%,#0d2338 78%,#173650 100%)", sand: "linear-gradient(180deg,#9a8d77 0%,#7e7261 100%)", label: "夜の海" },
+      };
+      var WEATHER_LABEL = { sunny: "晴れ", cloudy: "曇り", rain: "雨" };
+      function phaseFor(d) {
+        var h = d.getHours();
+        if (h >= 5 && h < 10) return "morning";
+        if (h >= 10 && h < 16) return "day";
+        if (h >= 16 && h < 19) return "evening";
+        return "night";
+      }
+      function weatherFor(d) {
+        var block = Math.floor(d.getTime() / (3 * 60 * 60 * 1000));
+        var seed = Math.sin(block * 127.1 + 311.7) * 43758.5453;
+        var r = seed - Math.floor(seed);
+        if (r < 0.5) return "sunny";
+        if (r < 0.8) return "cloudy";
+        return "rain";
+      }
+      function tideFor(d) {
+        var cycleMs = 12.4 * 60 * 60 * 1000;
+        var t = (d.getTime() % cycleMs) / cycleMs;
+        var angle = t * Math.PI * 2;
+        var level = 0.5 + 0.5 * Math.sin(angle - Math.PI / 2);
+        var rising = Math.cos(angle - Math.PI / 2) > 0;
+        var label;
+        if (level > 0.82) label = "満潮に近い";
+        else if (level < 0.18) label = "干潮に近い";
+        else label = rising ? "満ち潮" : "引き潮";
+        return { level: level, label: label };
+      }
+
+      var WAVE_PATH = "M0,32 C120,10 240,54 360,32 C480,10 600,54 720,32 C840,10 960,54 1080,32 C1200,10 1320,54 1440,32 L1440,80 L0,80 Z";
+      function waveSvg(color) {
+        return '<svg width="100%" height="56" viewBox="0 0 1440 80" preserveAspectRatio="none"><path d="' + WAVE_PATH + '" fill="' + color + '"/><path d="' + WAVE_PATH + '" transform="translate(720 0)" fill="' + color + '"/></svg>';
+      }
+      var FOAM_EDGE_PATH = "M0,24 Q36,8 72,24 T144,24 T216,24 T288,24 T360,24 T432,24 T504,24 T576,24 T648,24 T720,24 T792,24 T864,24 T936,24 T1008,24 T1080,24 T1152,24 T1224,24 T1296,24 T1368,24 T1440,24 L1440,40 L0,40 Z";
+      function washWave(duration, delay, tint, foamOpacity) {
+        var wrap = el("div", "wash-wave");
+        wrap.style.animationDuration = duration + "s";
+        wrap.style.animationDelay = delay + "s";
+        var sheet = el("div");
+        sheet.style.cssText = "position:absolute;inset:0;background-image:repeating-linear-gradient(180deg, rgba(255,255,255,0.10) 0px, rgba(255,255,255,0.10) 2px, transparent 2px, transparent 15px), linear-gradient(180deg, rgba(255,255,255,0) 0%, " + tint + " 42%, rgba(255,255,255,0.30) 80%, rgba(255,255,255,0.55) 100%)";
+        wrap.appendChild(sheet);
+        var edge = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        edge.setAttribute("class", "");
+        edge.setAttribute("height", "20");
+        edge.setAttribute("viewBox", "0 0 1440 40");
+        edge.setAttribute("preserveAspectRatio", "none");
+        edge.style.cssText = "position:absolute;bottom:0;left:0;width:100%";
+        edge.innerHTML = '<path d="' + FOAM_EDGE_PATH + '" fill="#ffffff" opacity="' + foamOpacity + '"/><g fill="#ffffff" opacity="' + foamOpacity + '"><circle cx="110" cy="31" r="3"/><circle cx="305" cy="34" r="2.2"/><circle cx="520" cy="30" r="3.4"/><circle cx="748" cy="33" r="2.4"/><circle cx="975" cy="31" r="3"/><circle cx="1205" cy="34" r="2.2"/><circle cx="1375" cy="30" r="3.2"/></g>';
+        wrap.appendChild(edge);
+        return wrap;
+      }
+      var GLINTS = [
+        { left: "10%", top: "26%", width: 36, delay: 0 }, { left: "26%", top: "52%", width: 22, delay: 1.1 },
+        { left: "44%", top: "34%", width: 30, delay: 2.2 }, { left: "58%", top: "62%", width: 20, delay: 0.6 },
+        { left: "70%", top: "28%", width: 40, delay: 1.7 }, { left: "82%", top: "50%", width: 24, delay: 2.8 },
+        { left: "36%", top: "72%", width: 18, delay: 3.1 }, { left: "64%", top: "80%", width: 26, delay: 0.3 },
+      ];
+      var FLECKS = [
+        { left: "7%", top: 8, size: 4, delay: 0 }, { left: "19%", top: 16, size: 3, delay: 1.4 },
+        { left: "33%", top: 6, size: 5, delay: 2.6 }, { left: "47%", top: 18, size: 3, delay: 0.8 },
+        { left: "59%", top: 10, size: 4, delay: 3.4 }, { left: "71%", top: 20, size: 3, delay: 1.9 },
+        { left: "84%", top: 7, size: 5, delay: 2.2 }, { left: "93%", top: 15, size: 3, delay: 4.1 },
+      ];
+      var currentTideLevel = 0.5;
+      function renderScene() {
+        var now = new Date();
+        var phase = phaseFor(now);
+        var weather = weatherFor(now);
+        var tide = tideFor(now);
+        currentTideLevel = tide.level;
+        var st = PHASE_STYLE[phase];
+        var isNight = phase === "night";
+        var sky = $("sky");
+        sky.style.background = st.sky;
+        sky.innerHTML = "";
+        if (phase === "night") {
+          var moon = el("div");
+          moon.style.cssText = "position:absolute;right:32px;top:24px;width:40px;height:40px;border-radius:999px;background:#f4ecd8;opacity:0.9;box-shadow:0 0 24px rgba(244,236,216,0.7)";
+          sky.appendChild(moon);
+          [["left:40px;top:32px", 0.8], ["left:33%;top:16px", 0.6], ["left:66%;top:48px", 0.7]].forEach(function (s) {
+            var star = el("div");
+            star.style.cssText = "position:absolute;width:4px;height:4px;border-radius:999px;background:#fff;opacity:" + s[1] + ";" + s[0];
+            sky.appendChild(star);
+          });
+        } else if (weather !== "rain") {
+          var sun = el("div");
+          sun.style.cssText =
+            "position:absolute;border-radius:999px;width:54px;height:54px;right:" + (phase === "evening" ? 40 : 56) + "px;top:" + (phase === "evening" ? 34 : 18) + "px;background:" +
+            (phase === "evening" ? "#ffdf9e" : "#fff3b0") + ";box-shadow:0 0 34px rgba(255,220,130,0.85);opacity:" + (weather === "cloudy" ? 0.35 : 1);
+          sky.appendChild(sun);
+        }
+        if (weather !== "sunny") {
+          var cloudBg = weather === "rain" ? "rgba(105,118,132,0.75)" : "rgba(255,255,255,0.75)";
+          var cloudBg2 = weather === "rain" ? "rgba(90,102,116,0.7)" : "rgba(255,255,255,0.65)";
+          var c1 = el("div", "drift-slow");
+          c1.style.cssText = "position:absolute;border-radius:100%;width:150px;height:34px;left:24px;top:22px;filter:blur(6px);background:" + cloudBg;
+          var c2 = el("div", "drift-slow");
+          c2.style.cssText = "position:absolute;border-radius:100%;width:190px;height:40px;right:6px;top:44px;filter:blur(7px);animation-delay:-4s;background:" + cloudBg2;
+          sky.appendChild(c1); sky.appendChild(c2);
+        }
+        var label = $("sceneLabel");
+        label.textContent = st.label + " ・ " + WEATHER_LABEL[weather] + " ・ " + tide.label;
+        label.style.color = isNight ? "rgba(240,240,235,0.85)" : "rgba(60,70,80,0.75)";
+        var sea = $("sea");
+        sea.style.top = 40 - tide.level * 7 + "%";
+        sea.style.height = 38 + tide.level * 9 + "%";
+        sea.style.background = st.sea;
+        sea.style.filter = weather === "rain" ? "brightness(0.82) saturate(0.8)" : "";
+        var sand = $("sand");
+        sand.style.height = 30 - tide.level * 9 + "%";
+        sand.style.background = st.sand;
+        sand.style.filter = weather === "rain" ? "brightness(0.88)" : "";
+        $("waveA").innerHTML = waveSvg("rgba(255,255,255,0.20)");
+        $("waveB").innerHTML = waveSvg("rgba(255,255,255,0.30)");
+        var washZone = $("washZone");
+        washZone.style.top = 52 + tide.level * 8 + "%";
+        washZone.innerHTML = "";
+        var tint = phase === "night" ? "rgba(110,145,180,0.30)" : phase === "evening" ? "rgba(215,200,205,0.32)" : "rgba(185,225,238,0.34)";
+        var foam = phase === "night" ? 0.5 : 0.9;
+        washZone.appendChild(washWave(9, -2.5, tint, foam));
+        washZone.appendChild(washWave(12.5, -8, tint, foam * 0.8));
+        washZone.appendChild(washWave(16, -13, tint, foam * 0.65));
+        var oldRain = $("rainLayer");
+        if (oldRain) oldRain.remove();
+        if (weather === "rain") {
+          var rain = el("div", "rain-layer");
+          rain.id = "rainLayer";
+          $("scene").appendChild(rain);
+        }
+        positionBottles();
+      }
+      (function buildFixedSceneBits() {
+        var g = $("glints");
+        GLINTS.forEach(function (it) {
+          var s = el("span", "glint");
+          s.style.cssText = "left:" + it.left + ";top:" + it.top + ";width:" + it.width + "px;height:2px;background:rgba(255,255,255,0.85);filter:blur(1px);animation-delay:" + it.delay + "s";
+          g.appendChild(s);
+        });
+        var f = $("flecks");
+        FLECKS.forEach(function (it) {
+          var s = el("span", "foam-fleck");
+          s.style.cssText = "left:" + it.left + ";top:" + it.top + "px;width:" + it.size + "px;height:" + it.size + "px;animation-delay:" + it.delay + "s";
+          f.appendChild(s);
+        });
+      })();
+
+      /* ================= 浜の瓶 ================= */
+      function positionBottles() {
+        var holder = $("beachBottles");
+        var kids = holder.children;
+        for (var i = 0; i < kids.length; i++) {
+          kids[i].style.bottom = 8 + currentTideLevel * 7 + (i % 2) * 5 + "%";
+          kids[i].style.left = 18 + i * 30 + "%";
+        }
+        $("emptySeaText").style.display = state.beach.length === 0 ? "" : "none";
+        $("emptySeaText").style.bottom = 8 + currentTideLevel * 7 + 3 + "%";
+        $("emptySeaText").style.color = phaseFor(new Date()) === "night" ? "rgba(30,35,40,0.75)" : "rgba(90,75,50,0.8)";
+      }
+      function renderBeach() {
+        var holder = $("beachBottles");
+        holder.innerHTML = "";
+        state.beach.forEach(function (letter) {
+          var b = el("button", "bottle-btn");
+          b.type = "button";
+          b.setAttribute("aria-label", letter.lighthouse ? "灯台の手紙の瓶を開ける" : "流れ着いた瓶を開ける");
+          b.innerHTML = bottleSvg(52, letter.lighthouse);
+          var tag = el("span", "tag" + (letter.lighthouse ? " lighthouse" : ""), letter.lighthouse ? "灯台の手紙" : "瓶が流れ着いた");
+          b.appendChild(tag);
+          b.addEventListener("click", function () { openLetter(letter); });
+          holder.appendChild(b);
+        });
+        positionBottles();
+      }
+      function promoteQueue() {
+        while (state.beach.length < 3 && state.queue.length > 0) {
+          state.beach.push(state.queue.shift());
+        }
+        renderBeach();
+      }
+      function removeFromBeach(id) {
+        state.beach = state.beach.filter(function (l) { return l.id !== id; });
+        promoteQueue();
+      }
+
+      /* ================= さざ波の音 ================= */
+      var sound = { on: false, ctx: null, gain: null };
+      try { sound.on = window.localStorage.getItem("wave-sound") === "on"; } catch (e) { sound.on = false; }
+      function renderSoundBtn() {
+        $("soundIcon").innerHTML = volumeSvg(sound.on);
+        $("soundLabel").textContent = sound.on ? "さざ波：流れています" : "さざ波：止まっています";
+        $("soundBtn").setAttribute("aria-pressed", sound.on ? "true" : "false");
+        $("soundBtn").setAttribute("aria-label", sound.on ? "波の音を止める" : "波の音を流す");
+      }
+      function stopSound() {
+        if (!sound.ctx) return;
+        var ctx = sound.ctx, gain = sound.gain;
+        sound.ctx = null; sound.gain = null;
+        try {
+          gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.6);
+          window.setTimeout(function () { ctx.close().catch(function () {}); }, 800);
+        } catch (e) {}
+      }
+      function startSound() {
+        if (sound.ctx) return;
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        var ctx = new AC();
+        if (ctx.state === "suspended") ctx.resume();
+        var length = ctx.sampleRate * 4;
+        var buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+        var data = buffer.getChannelData(0);
+        var last = 0;
+        for (var i = 0; i < length; i++) {
+          var white = Math.random() * 2 - 1;
+          last = last * 0.94 + white * 0.06;
+          data[i] = last * 2.4;
+        }
+        var src = ctx.createBufferSource();
+        src.buffer = buffer; src.loop = true;
+        var filter = ctx.createBiquadFilter();
+        filter.type = "lowpass"; filter.frequency.value = 420; filter.Q.value = 0.4;
+        var gain = ctx.createGain();
+        gain.gain.value = 0;
+        gain.gain.linearRampToValueAtTime(0.16, ctx.currentTime + 1.5);
+        var lfo = ctx.createOscillator(); lfo.frequency.value = 0.09;
+        var lfoGain = ctx.createGain(); lfoGain.gain.value = 0.075;
+        lfo.connect(lfoGain); lfoGain.connect(gain.gain);
+        var lfo2 = ctx.createOscillator(); lfo2.frequency.value = 0.045;
+        var lfo2Gain = ctx.createGain(); lfo2Gain.gain.value = 130;
+        lfo2.connect(lfo2Gain); lfo2Gain.connect(filter.frequency);
+        src.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
+        src.start(); lfo.start(); lfo2.start();
+        sound.ctx = ctx; sound.gain = gain;
+      }
+      function applySound() {
+        try { window.localStorage.setItem("wave-sound", sound.on ? "on" : "off"); } catch (e) {}
+        if (sound.on) startSound(); else stopSound();
+        renderSoundBtn();
+      }
+      $("soundBtn").addEventListener("click", function () {
+        sound.on = !sound.on;
+        applySound();
+      });
+
+      /* ================= RPC ================= */
+      function rpc(name, params) {
+        if (!sb) return Promise.resolve({ data: null, error: new Error("no client") });
+        return sb.rpc(name, params);
+      }
+
+      /* 流れ着き：15秒ごとに1通 */
+      function tickPick() {
+        if (document.hidden) return;
+        rpc("pick_letter", { p_reader_token: token }).then(function (res) {
+          if (res.error || !res.data) return;
+          var raw = Array.isArray(res.data) ? res.data[0] : res.data;
+          var letter = normalizePicked(raw);
+          if (!letter) return;
+          if (state.seenIds[letter.id]) return;
+          state.seenIds[letter.id] = true;
+          if (state.beach.length < 3) {
+            state.beach.push(letter);
+            renderBeach();
+          } else {
+            state.queue.push(letter);
+          }
+        }).catch(function () {});
+      }
+
+      /* 自分の手紙（波紋の補助検知も兼ねる） */
+      function refreshMine() {
+        rpc("my_letters", { p_author_token: token }).then(function (res) {
+          if (res.error || !Array.isArray(res.data)) {
+            if (!state.mineLoaded) { state.mineError = true; renderMine(); }
+            return;
+          }
+          state.mineLoaded = true;
+          state.mineError = false;
+          state.myLetters = res.data;
+          state.myIds = {};
+          var total = 0;
+          res.data.forEach(function (l) {
+            state.myIds[l.id] = true;
+            total += typeof l.read_count === "number" ? l.read_count : 0;
+          });
+          if (state.lastReadsTotal !== null && total > state.lastReadsTotal) {
+            if (Date.now() - state.lastRippleAt > 15000) showRipple();
+          }
+          state.lastReadsTotal = total;
+          renderMine();
+        }).catch(function () {
+          if (!state.mineLoaded) { state.mineError = true; renderMine(); }
+        });
+      }
+      function refreshShelf() {
+        rpc("my_shelf", { p_reader_token: token }).then(function (res) {
+          if (res.error || !Array.isArray(res.data)) return;
+          state.shelf = res.data;
+          state.keptIds = {};
+          /* my_shelfは letter_id を含む場合のみ対応付けできる。含まない場合はモーダル側の状態で補う */
+          res.data.forEach(function (s) { if (s.letter_id != null) state.keptIds[s.letter_id] = true; });
+          renderShelf();
+        }).catch(function () {});
+      }
+
+      /* ================= 波紋 ================= */
+      var rippleMsgTimer = null;
+      function showRipple() {
+        state.lastRippleAt = Date.now();
+        var scene = $("scene");
+        var zone = $("rippleZone");
+        var rectW = scene.clientWidth || 360;
+        zone.style.left = Math.round(rectW * (0.25 + Math.random() * 0.45)) + "px";
+        zone.style.top = 46 + currentTideLevel * 9 + "%";
+        zone.style.width = "0px"; zone.style.height = "0px";
+        zone.innerHTML = "";
+        for (var i = 0; i < 3; i++) {
+          var ring = el("div", "ripple-ring");
+          ring.style.animationDelay = i * 0.55 + "s";
+          zone.appendChild(ring);
+        }
+        window.setTimeout(function () { zone.innerHTML = ""; }, 4500);
+        var msg = $("rippleMsg");
+        msg.classList.add("show");
+        if (rippleMsgTimer) window.clearTimeout(rippleMsgTimer);
+        rippleMsgTimer = window.setTimeout(function () { msg.classList.remove("show"); }, 5200);
+      }
+      function subscribeRipples() {
+        if (!sb) return;
+        try {
+          sb.channel("ripples-watch")
+            .on("postgres_changes", { event: "INSERT", schema: "public", table: "ripples" }, function (payload) {
+              var row = payload && payload.new;
+              if (!row || row.letter_id == null) return;
+              if (state.myIds[row.letter_id]) showRipple();
+            })
+            .subscribe();
+        } catch (e) { /* 補助の30秒ポーリングで代替する */ }
+      }
+
+      /* ================= パネル描画 ================= */
+      function lighthouseBadge() {
+        var s = el("span", "lighthouse-badge");
+        var d = el("span", "dot");
+        s.appendChild(d);
+        s.appendChild(document.createTextNode("灯台の手紙"));
+        return s;
+      }
+      function renderMine() {
+        var list = $("mineList");
+        list.innerHTML = "";
+        var badge = $("mineCount");
+        if (state.myLetters.length > 0) {
+          badge.style.display = "";
+          badge.textContent = String(state.myLetters.length);
+        } else badge.style.display = "none";
+        if (!state.mineLoaded) {
+          list.appendChild(el("p", "empty-note", state.mineError ? "海とつながれませんでした。少し待って、開き直してみてください。" : "潮の様子を見ています…"));
+          return;
+        }
+        if (state.myLetters.length === 0) {
+          list.appendChild(el("p", "empty-note", "まだ手紙を流していません。"));
+          return;
+        }
+        state.myLetters.forEach(function (l) {
+          var card = el("article", "card");
+          var body = el("p", "font-letter clamp2", l.body || "");
+          body.style.cssText = "margin:0;font-size:14px;line-height:1.7";
+          card.appendChild(body);
+          var meta = el("p", null, fmtDate(l.created_at) + "に流した");
+          meta.style.cssText = "margin:4px 0 0;font-size:12px;color:var(--dim)";
+          card.appendChild(meta);
+          var row = el("div");
+          row.style.cssText = "margin-top:6px;display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;font-size:14px";
+          var reads = el("span", null, "読まれた回数 ");
+          var rv = el("strong", null, String(typeof l.read_count === "number" ? l.read_count : 0));
+          reads.appendChild(rv);
+          row.appendChild(reads);
+          var likes = el("span");
+          likes.style.cssText = "display:inline-flex;align-items:center;gap:4px";
+          likes.innerHTML = heartSvg((l.like_count || 0) > 0, 15);
+          likes.appendChild(el("strong", null, String(typeof l.like_count === "number" ? l.like_count : 0)));
+          row.appendChild(likes);
+          if (l.lighthouse) row.appendChild(lighthouseBadge());
+          card.appendChild(row);
+          var stamps = el("p", null,
+            "沁みた " + stampCount(l, "shimita") + " ・ 元気が出た " + stampCount(l, "genki") + " ・ 泣いた " + stampCount(l, "naita"));
+          stamps.style.cssText = "margin:4px 0 0;font-size:12px;color:var(--dim)";
+          card.appendChild(stamps);
+          list.appendChild(card);
+        });
+      }
+      function renderShelf() {
+        var list = $("shelfList");
+        list.innerHTML = "";
+        var badge = $("shelfCount");
+        if (state.shelf.length > 0) {
+          badge.style.display = "";
+          badge.textContent = String(state.shelf.length);
+        } else badge.style.display = "none";
+        if (state.shelf.length === 0) {
+          list.appendChild(el("p", "empty-note", "まだ棚は空です。心に残った手紙の写しを、ここにしまえます。"));
+          return;
+        }
+        state.shelf.forEach(function (s) {
+          var btn = el("button", "card-btn");
+          btn.type = "button";
+          btn.setAttribute("aria-label", "棚の写しを開く");
+          var card = el("div", "paper-card");
+          card.style.cssText = "border-radius:var(--radius);padding:12px;box-shadow:none;border:1px solid var(--border)";
+          var body = el("p", "font-letter clamp2", s.body || "");
+          body.style.cssText = "margin:0;font-size:14px;line-height:1.7";
+          card.appendChild(body);
+          var meta = el("p", null, fmtDate(s.kept_at) + "に写した");
+          meta.style.cssText = "margin:4px 0 0;font-size:12px;color:#8a8172";
+          card.appendChild(meta);
+          btn.appendChild(card);
+          btn.addEventListener("click", function () { openShelfCopy(s); });
+          list.appendChild(btn);
+        });
+      }
+
+      /* ================= 手紙モーダル ================= */
+      function closeLetter() {
+        state.opened = null;
+        $("letterOverlay").style.display = "none";
+      }
+      function openLetter(letter) {
+        state.opened = letter;
+        renderLetterModal();
+        $("letterOverlay").style.display = "";
+      }
+      function renderLetterModal() {
+        var letter = state.opened;
+        if (!letter) return;
+        var sheet = $("letterSheet");
+        sheet.innerHTML = "";
+        var head = el("div");
+        head.style.cssText = "display:flex;align-items:flex-start;justify-content:space-between;gap:12px";
+        var titleWrap = el("div");
+        var title = el("p", "font-letter", letter.lighthouse ? "" : "流れ着いた手紙");
+        title.style.cssText = "margin:0;font-size:18px";
+        if (letter.lighthouse) {
+          title.appendChild(lighthouseBadge());
+        }
+        titleWrap.appendChild(title);
+        head.appendChild(titleWrap);
+        var closeBtn = el("button", null, "閉じる");
+        closeBtn.type = "button";
+        closeBtn.setAttribute("aria-label", "手紙を閉じる");
+        closeBtn.style.cssText = "border-radius:999px;padding:4px 12px;font-size:14px;background:rgba(90,75,50,0.12);color:#5a5142;min-height:36px;min-width:36px";
+        closeBtn.addEventListener("click", closeLetter);
+        head.appendChild(closeBtn);
+        sheet.appendChild(head);
+
+        var body = el("p", "font-letter", letter.body);
+        body.style.cssText = "margin:16px 0 0;white-space:pre-wrap;font-size:16px;line-height:2;color:var(--paper-text)";
+        sheet.appendChild(body);
+
+        if (letter.lighthouse) {
+          var lhNote = el("p", null, "この手紙は、多くの人の心に残り、灯台の明かりを灯されました。読まれても沈まず、海を漂い続けます。");
+          lhNote.style.cssText = "margin:10px 0 0;font-size:12px;line-height:1.8;color:#8a6d1f";
+          sheet.appendChild(lhNote);
+        }
+
+        /* いいね */
+        var likeRow = el("div");
+        likeRow.style.cssText = "margin-top:16px;display:flex;align-items:center;gap:8px";
+        var liked = !!state.liked[letter.id];
+        var likeBtn = el("button", "chip-btn");
+        likeBtn.type = "button";
+        likeBtn.setAttribute("aria-pressed", liked ? "true" : "false");
+        likeBtn.setAttribute("aria-label", liked ? "いいね済み" : "この手紙にいいねする");
+        likeBtn.style.cssText = "background:" + (liked ? "var(--rose-soft)" : "rgba(90,75,50,0.10)") + ";color:" + (liked ? "#b0405e" : "#5a5142");
+        likeBtn.innerHTML = heartSvg(liked, 18);
+        likeBtn.appendChild(document.createTextNode("いいね " + letter.like_count));
+        if (liked) likeBtn.disabled = true;
+        likeBtn.addEventListener("click", function () { doLike(letter); });
+        likeRow.appendChild(likeBtn);
+        var likeNote = el("span", null, "これまでに" + letter.like_count + "人がいいねしました");
+        likeNote.style.cssText = "font-size:12px;color:var(--paper-dim)";
+        likeRow.appendChild(likeNote);
+        sheet.appendChild(likeRow);
+
+        /* 共感スタンプ */
+        var stampHead = el("p", null, "共感のひとこと（ひとつだけ贈れます）");
+        stampHead.style.cssText = "margin:16px 0 0;font-size:12px;color:var(--paper-dim)";
+        sheet.appendChild(stampHead);
+        var stampRow = el("div");
+        stampRow.style.cssText = "margin-top:8px;display:flex;flex-wrap:wrap;gap:8px";
+        var myStamp = state.stamped[letter.id];
+        STAMPS.forEach(function (s) {
+          var b = el("button", "chip-btn stamp-btn");
+          b.type = "button";
+          b.setAttribute("aria-pressed", myStamp === s.type ? "true" : "false");
+          b.setAttribute("aria-label", "共感スタンプ「" + s.label + "」を贈る");
+          b.style.cssText = "background:rgba(46,107,138,0.10);color:#2e5a72";
+          b.textContent = s.label + " " + stampCount(letter, s.type);
+          if (myStamp) b.disabled = true;
+          b.addEventListener("click", function () { doStamp(letter, s.type); });
+          stampRow.appendChild(b);
+        });
+        sheet.appendChild(stampRow);
+        if (myStamp) {
+          var sentNote = el("p", null, "「" + STAMPS.filter(function (s) { return s.type === myStamp; })[0].label + "」を贈りました。");
+          sentNote.style.cssText = "margin:8px 0 0;font-size:12px;color:var(--paper-dim)";
+          sheet.appendChild(sentNote);
+        }
+
+        /* 棚・流し直す */
+        var actRow = el("div");
+        actRow.style.cssText = "margin-top:20px;display:flex;flex-wrap:wrap;align-items:center;gap:8px";
+        var kept = !!state.keptIds[letter.id];
+        if (!kept) {
+          var keepBtn = el("button", null, "棚にしまう");
+          keepBtn.type = "button";
+          keepBtn.setAttribute("aria-label", "この手紙の写しを棚にしまう");
+          keepBtn.style.cssText = "border-radius:999px;padding:8px 16px;font-size:14px;background:#2e6b8a;color:#fff;min-height:40px";
+          keepBtn.addEventListener("click", function () { doKeep(letter); });
+          actRow.appendChild(keepBtn);
+        } else {
+          var keptTag = el("span", null, "棚に写しがあります");
+          keptTag.style.cssText = "border-radius:999px;padding:8px 16px;font-size:14px;background:rgba(46,107,138,0.14);color:#2e6b8a";
+          actRow.appendChild(keptTag);
+        }
+        var recastBtn = el("button", null, "流し直す");
+        recastBtn.type = "button";
+        recastBtn.setAttribute("aria-label", "手紙を瓶に戻して流し直す");
+        recastBtn.style.cssText = "border-radius:999px;padding:8px 16px;font-size:14px;background:rgba(90,75,50,0.10);color:#5a5142;min-height:40px";
+        recastBtn.addEventListener("click", function () {
+          closeLetter();
+          removeFromBeach(letter.id);
+        });
+        actRow.appendChild(recastBtn);
+        sheet.appendChild(actRow);
+        var keepNote = el("p", null, "棚にしまうのは写しです。瓶そのものは海へ戻り、他の人へ流れ続けます。");
+        keepNote.style.cssText = "margin:8px 0 0;font-size:12px;line-height:1.8;color:var(--paper-dim)";
+        sheet.appendChild(keepNote);
+
+        /* 通報 */
+        var foot = el("div");
+        foot.style.cssText = "margin-top:12px;display:flex;justify-content:flex-end";
+        if (!state.reported[letter.id]) {
+          var repBtn = el("button", "text-link", "通報する");
+          repBtn.type = "button";
+          repBtn.setAttribute("aria-label", "この手紙を通報する");
+          repBtn.addEventListener("click", function () { doReport(letter); });
+          foot.appendChild(repBtn);
+        } else {
+          var repDone = el("span", null, "通報しました");
+          repDone.style.cssText = "font-size:12px;color:var(--paper-dim);padding:8px 4px";
+          foot.appendChild(repDone);
+        }
+        sheet.appendChild(foot);
+      }
+      function doLike(letter) {
+        if (state.liked[letter.id]) return;
+        state.liked[letter.id] = true;
+        letter.like_count += 1;
+        renderLetterModal();
+        rpc("like_letter", { p_letter_id: letter.id, p_reader_token: token }).then(function (res) {
+          if (res.error) return;
+          var v = res.data;
+          if (typeof v === "number") letter.like_count = v;
+          else if (v && typeof v.like_count === "number") letter.like_count = v.like_count;
+          else if (Array.isArray(v) && v[0] && typeof v[0].like_count === "number") letter.like_count = v[0].like_count;
+          if (state.opened && state.opened.id === letter.id) renderLetterModal();
+        }).catch(function () {});
+      }
+      function doStamp(letter, type) {
+        if (state.stamped[letter.id]) return;
+        state.stamped[letter.id] = type;
+        if (typeof letter.stamp_counts !== "object" || !letter.stamp_counts) letter.stamp_counts = {};
+        letter.stamp_counts[type] = stampCount(letter, type) + 1;
+        renderLetterModal();
+        rpc("stamp_letter", { p_letter_id: letter.id, p_reader_token: token, p_stamp_type: type }).then(function (res) {
+          if (res.error || !res.data) return;
+          var v = res.data;
+          if (v && typeof v === "object" && !Array.isArray(v)) letter.stamp_counts = v;
+          else if (Array.isArray(v) && v[0] && typeof v[0] === "object") letter.stamp_counts = v[0].stamp_counts || v[0];
+          if (state.opened && state.opened.id === letter.id) renderLetterModal();
+        }).catch(function () {});
+      }
+      function doKeep(letter) {
+        rpc("keep_letter", { p_reader_token: token, p_letter_id: letter.id }).then(function (res) {
+          if (res.error) return;
+          state.keptIds[letter.id] = true;
+          if (state.opened && state.opened.id === letter.id) renderLetterModal();
+          refreshShelf();
+        }).catch(function () {});
+      }
+      function doReport(letter) {
+        rpc("report_letter", { p_letter_id: letter.id }).then(function (res) {
+          if (res.error) return;
+          state.reported[letter.id] = true;
+          if (state.opened && state.opened.id === letter.id) renderLetterModal();
+        }).catch(function () {});
+      }
+      $("letterOverlay").addEventListener("click", function (e) {
+        if (e.target === this) closeLetter();
+      });
+
+      /* ================= 棚の写しモーダル ================= */
+      function openShelfCopy(copy) {
+        var sheet = $("shelfSheet");
+        sheet.innerHTML = "";
+        var head = el("div");
+        head.style.cssText = "display:flex;align-items:flex-start;justify-content:space-between;gap:12px";
+        var t = el("p", "font-letter", "棚の写し");
+        t.style.cssText = "margin:0;font-size:18px";
+        head.appendChild(t);
+        var closeBtn = el("button", null, "閉じる");
+        closeBtn.type = "button";
+        closeBtn.setAttribute("aria-label", "写しを閉じる");
+        closeBtn.style.cssText = "border-radius:999px;padding:4px 12px;font-size:14px;background:rgba(90,75,50,0.12);color:#5a5142;min-height:36px;min-width:36px";
+        closeBtn.addEventListener("click", function () { $("shelfOverlay").style.display = "none"; });
+        head.appendChild(closeBtn);
+        sheet.appendChild(head);
+        var body = el("p", "font-letter", copy.body || "");
+        body.style.cssText = "margin:16px 0 0;white-space:pre-wrap;font-size:16px;line-height:2;color:var(--paper-text)";
+        sheet.appendChild(body);
+        var meta = el("p", null, fmtDate(copy.kept_at) + "に写しました。瓶そのものは、今も海を漂っています。");
+        meta.style.cssText = "margin:12px 0 0;font-size:12px;line-height:1.8;color:var(--paper-dim)";
+        sheet.appendChild(meta);
+        $("shelfOverlay").style.display = "";
+      }
+      $("shelfOverlay").addEventListener("click", function (e) {
+        if (e.target === this) this.style.display = "none";
+      });
+
+      /* ================= 書く・流す ================= */
+      var composing = false;
+      function setComposing(v) {
+        composing = v;
+        $("composer").style.display = v ? "" : "none";
+        $("homeArea").style.display = v ? "none" : "";
+        if (v) $("letterBody").focus();
+      }
+      $("writeBtn").addEventListener("click", function () { setComposing(true); });
+      $("cancelComposeBtn").addEventListener("click", function () { setComposing(false); });
+      $("letterBody").addEventListener("input", function () {
+        $("charCount").textContent = this.value.length + " / 300";
+      });
+      var casting = false;
+      $("castBtn").addEventListener("click", function () {
+        if (casting) return;
+        var body = $("letterBody").value.trim();
+        var errBox = $("castError");
+        if (!body) {
+          errBox.textContent = "手紙がまだ書かれていません。";
+          errBox.style.display = "";
+          return;
+        }
+        if (body.length > 300) {
+          errBox.textContent = "手紙は300文字までです。少しだけ短くしてみてください。";
+          errBox.style.display = "";
+          return;
+        }
+        errBox.style.display = "none";
+        casting = true;
+        var btn = $("castBtn");
+        btn.disabled = true;
+        btn.textContent = "瓶に入れています…";
+        rpc("cast_letter", { p_author_token: token, p_body: body }).then(function (res) {
+          casting = false;
+          btn.disabled = false;
+          btn.textContent = "瓶に入れて、海に流す";
+          if (res.error) {
+            errBox.textContent = "この手紙は、うまく流せませんでした。リンクや個人情報が含まれていないか確かめて、少し時間を置いてから、もう一度試してみてください。";
+            errBox.style.display = "";
+            return;
+          }
+          $("letterBody").value = "";
+          $("charCount").textContent = "0 / 300";
+          setComposing(false);
+          playCastAnimation();
+          refreshMine();
+        }).catch(function () {
+          casting = false;
+          btn.disabled = false;
+          btn.textContent = "瓶に入れて、海に流す";
+          errBox.textContent = "海とつながれませんでした。少し待ってから、もう一度試してみてください。";
+          errBox.style.display = "";
+        });
+      });
+      function playCastAnimation() {
+        var layer = $("castLayer");
+        $("castBottle").innerHTML = bottleSvg(64, false);
+        layer.style.display = "";
+        window.setTimeout(function () { layer.style.display = "none"; }, 3100);
+      }
+
+      /* ================= 初回の案内 ================= */
+      if (isFirstVisit) $("introOverlay").style.display = "";
+      $("introCloseBtn").addEventListener("click", function () {
+        $("introOverlay").style.display = "none";
+      });
+
+      /* ================= 起動 ================= */
+      renderScene();
+      renderBeach();
+      renderMine();
+      renderShelf();
+      renderSoundBtn();
+      if (sound.on) {
+        /* 自動再生制限のため、最初のタップで音を開始する */
+        var kick = function () {
+          startSound();
+          document.removeEventListener("pointerdown", kick);
+        };
+        document.addEventListener("pointerdown", kick);
+      }
+      window.setInterval(renderScene, 60000);
+      refreshMine();
+      refreshShelf();
+      subscribeRipples();
+      window.setTimeout(tickPick, 2500);
+      window.setInterval(tickPick, 15000);
+      window.setInterval(refreshMine, 30000);
+    </script>
+  </body>
+</html>
