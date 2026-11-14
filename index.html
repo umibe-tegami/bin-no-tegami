@@ -1441,6 +1441,11 @@
         }).catch(function () {});
       }
       function doReport(letter) {
+        if (exodiaPartOf(letter && letter.body)) {
+          state.reported[letter.id] = true;
+          if (state.opened && state.opened.id === letter.id) renderLetterModal();
+          return;
+        }
         rpc("report_letter", { p_letter_id: letter.id }).then(function (res) {
           if (res.error) return;
           state.reported[letter.id] = true;
