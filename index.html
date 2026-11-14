@@ -998,12 +998,12 @@
         return Object.prototype.hasOwnProperty.call(EXODIA_PARTS, t) ? t : null;
       }
       function exodiaLoad() {
-        try { return JSON.parse(window.localStorage.getItem("bin_exodia_parts") || "[]"); } catch (e) { return []; }
+        try { return JSON.parse(window.localStorage.getItem("bin_exodia_parts_v2") || "[]"); } catch (e) { return []; }
       }
       function exodiaSave(parts) {
-        try { window.localStorage.setItem("bin_exodia_parts", JSON.stringify(parts)); } catch (e) {}
+        try { window.localStorage.setItem("bin_exodia_parts_v2", JSON.stringify(parts)); } catch (e) {}
       }
-      function exodiaCollect(letter) {
+      function exodiaCollect(letter, sheetId) {
         var part = exodiaPartOf(letter && letter.body);
         if (!part) return;
         var parts = exodiaLoad();
@@ -1015,7 +1015,7 @@
           return;
         }
         if (isNew) {
-          var sheet = $("letterSheet");
+          var sheet = $(sheetId || "letterSheet");
           if (sheet) {
             var note = el("p", null, "— 封印のパーツを拾った（" + parts.length + "／5）—");
             note.style.cssText = "margin:14px 0 0;font-size:12px;letter-spacing:0.14em;color:#b8860b;text-align:center";
@@ -1025,6 +1025,7 @@
       }
       function exodiaSummon() {
         try { closeLetter(); } catch (e) {}
+        try { $("shelfOverlay").style.display = "none"; } catch (e) {}
         var ov = $("exodiaOverlay");
         ov.classList.add("show");
         playExodiaSting();
@@ -1297,6 +1298,7 @@
 
       /* ================= 棚の写しモーダル ================= */
       function openShelfCopy(copy) {
+        if (copy) exodiaCollect({ body: copy.body }, "shelfSheet"); /* 棚の写しから読んでもパーツは集まる */
         var sheet = $("shelfSheet");
         sheet.innerHTML = "";
         var head = el("div");
