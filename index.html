@@ -1048,6 +1048,7 @@
       }
       function exodiaSummon() {
         unlock("exodia_summon");
+        try { window.localStorage.setItem("bin_exodia_summoned", "1"); } catch (e) {}
         try { closeLetter(); } catch (e) {}
         try { $("shelfOverlay").style.display = "none"; } catch (e) {}
         var ov = $("exodiaOverlay");
@@ -1161,6 +1162,17 @@
       function achvSave() {
         try { window.localStorage.setItem("bin_achv_v1", JSON.stringify(achv)); } catch (e) {}
       }
+      /* 召喚した記録が残っていれば、実績をさかのぼって解放する（通知なし） */
+      (function () {
+        try {
+          if (window.localStorage.getItem("bin_exodia_summoned") === "1") {
+            var now = new Date().toISOString();
+            if (!achv.u.exodia_part) achv.u.exodia_part = now;
+            if (!achv.u.exodia_summon) achv.u.exodia_summon = now;
+            achvSave();
+          }
+        } catch (e) {}
+      })();
       function unlock(id) {
         try {
           if (!ACHV_DEFS[id] || achv.u[id]) return;
