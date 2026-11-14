@@ -163,6 +163,17 @@
       }
       .ripple-msg.show { opacity: 1; }
 
+      /* 実績の知らせ（画面下部に静かに出るピル） */
+      .achv-toast {
+        position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
+        z-index: 95; white-space: nowrap; max-width: 92%;
+        border-radius: 999px; padding: 7px 16px; font-size: 13px;
+        background: rgba(20, 34, 48, 0.62); color: #f4f1e6;
+        border: 1px solid rgba(217, 165, 33, 0.45);
+        opacity: 0; transition: opacity 0.8s ease; pointer-events: none;
+      }
+      .achv-toast.show { opacity: 1; }
+
       /* ---------- 封印されし召喚（隠し演出） ---------- */
       #exodiaOverlay {
         position: fixed; inset: 0; z-index: 90; display: none;
@@ -343,6 +354,12 @@
                 <div class="list" id="shelfList"></div>
               </section>
             </div>
+            <div style="display:flex;flex:none;justify-content:flex-end">
+              <button type="button" id="achvBtn"
+                style="border-radius:999px;padding:4px 14px;font-size:12px;background:var(--surface);border:1px solid var(--border);color:var(--text);min-height:32px">
+                実績
+              </button>
+            </div>
           </div>
         </div>
       </main>
@@ -358,6 +375,12 @@
     <div class="overlay" id="shelfOverlay" style="display:none">
       <div class="sheet paper-card" role="dialog" aria-modal="true" aria-label="棚の写し" id="shelfSheet"></div>
     </div>
+
+    <!-- 実績モーダル -->
+    <div class="overlay" id="achvOverlay" style="display:none">
+      <div class="sheet paper-card" role="dialog" aria-modal="true" aria-label="実績" id="achvSheet"></div>
+    </div>
+    <p class="achv-toast font-letter" id="achvToast" role="status"></p>
 
     <!-- 初回の案内 -->
     <div class="overlay" id="introOverlay" style="display:none">
@@ -1008,7 +1031,7 @@
         if (!part) return;
         var parts = exodiaLoad();
         var isNew = parts.indexOf(part) === -1;
-        if (isNew) { parts.push(part); exodiaSave(parts); }
+        if (isNew) { parts.push(part); exodiaSave(parts); unlock("exodia_part"); }
         if (parts.length >= 5) {
           exodiaSave([]);
           window.setTimeout(function () { exodiaSummon(); }, 650);
@@ -1024,6 +1047,7 @@
         }
       }
       function exodiaSummon() {
+        unlock("exodia_summon");
         try { closeLetter(); } catch (e) {}
         try { $("shelfOverlay").style.display = "none"; } catch (e) {}
         var ov = $("exodiaOverlay");
@@ -1119,6 +1143,125 @@
         taiko(T + 2.2, 0.5); taiko(T + 3.4, 0.35);
         window.setTimeout(function () { ctx.close().catch(function () {}); }, 13500);
       }
+
+      /* ================= 実績（この端末だけの小さな記録） ================= */
+      /* 定義：name=名前 / desc=解放後の説明 / hint=未解放時の条件ヒント / secret=未解放時は伏せる / replay=演出の再生関数（任意） */
+      var ACHV_DEFS = {
+        exodia_part:   { name: "封印のパーツ", desc: "封印のパーツを拾った", hint: "", secret: true },
+        exodia_summon: { name: "召喚者", desc: "五つのパーツを集め、封印を解いた", hint: "", secret: true, replay: exodiaSummon }
+      };
+      var ACHV_ORDER = ["exodia_part", "exodia_summon"];
+      var achv = (function () {
+        var d = null;
+        try { d = JSON.parse(window.localStorage.getItem("bin_achv_v1") || "null"); } catch (e) { d = null; }
+        if (!d || typeof d !== "object") d = {};
+        if (!d.u || typeof d.u !== "object") d.u = {};
+        return d;
+      })();
+      function achvSave() {
+        try { window.localStorage.setItem("bin_achv_v1", JSON.stringify(achv)); } catch (e) {}
+      }
+      function unlock(id) {
+        try {
+          if (!ACHV_DEFS[id] || achv.u[id]) return;
+          achv.u[id] = new Date().toISOString();
+          achvSave();
+          achvToast(ACHV_DEFS[id].name);
+        } catch (e) {}
+      }
+      /* 解放の知らせ（小さなピルを順番に） */
+      var achvToastQueue = [];
+      var achvToastBusy = false;
+      function achvToast(name) {
+        achvToastQueue.push(name);
+        if (!achvToastBusy) achvToastNext();
+      }
+      function achvToastNext() {
+        var name = achvToastQueue.shift();
+        if (name == null) { achvToastBusy = false; return; }
+        achvToastBusy = true;
+        var t = $("achvToast");
+        if (!t) { achvToastBusy = false; return; }
+        t.textContent = "実績『" + name + "』を達成しました";
+        t.classList.add("show");
+        window.setTimeout(function () {
+          t.classList.remove("show");
+          window.setTimeout(achvToastNext, 900);
+        }, 3600);
+      }
+      function fmtAchvDate(iso) {
+        if (!iso) return "";
+        try {
+          return new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "numeric", day: "numeric" }).format(new Date(iso));
+        } catch (e) { return ""; }
+      }
+      function renderAchievements() {
+        var sheet = $("achvSheet");
+        sheet.innerHTML = "";
+        var head = el("div");
+        head.style.cssText = "display:flex;align-items:flex-start;justify-content:space-between;gap:12px";
+        var t = el("p", "font-letter", "実績");
+        t.style.cssText = "margin:0;font-size:18px";
+        head.appendChild(t);
+        var closeBtn = el("button", null, "閉じる");
+        closeBtn.type = "button";
+        closeBtn.setAttribute("aria-label", "実績を閉じる");
+        closeBtn.style.cssText = "border-radius:999px;padding:4px 12px;font-size:14px;background:rgba(90,75,50,0.12);color:#5a5142;min-height:36px;min-width:36px";
+        closeBtn.addEventListener("click", function () { $("achvOverlay").style.display = "none"; });
+        head.appendChild(closeBtn);
+        sheet.appendChild(head);
+        var done = 0;
+        ACHV_ORDER.forEach(function (id) { if (achv.u[id]) done++; });
+        var sub = el("p", null, done + " / " + ACHV_ORDER.length + " 達成。この端末だけの、小さな記録です。");
+        sub.style.cssText = "margin:8px 0 0;font-size:12px;color:var(--paper-dim)";
+        sheet.appendChild(sub);
+        var list = el("div");
+        list.style.cssText = "margin-top:12px;display:flex;flex-direction:column;gap:8px";
+        ACHV_ORDER.forEach(function (id) {
+          var def = ACHV_DEFS[id];
+          var at = achv.u[id];
+          var row = el("div");
+          row.style.cssText = "display:flex;gap:10px;align-items:flex-start;border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px";
+          var dot = el("span");
+          dot.style.cssText = "flex:none;width:14px;height:14px;border-radius:999px;margin-top:3px;background:" +
+            (at ? "radial-gradient(circle at 35% 35%, #ffe9a8, #d9a521);box-shadow:0 0 6px rgba(217,165,33,0.55)" : "rgba(90,75,50,0.18)");
+          row.appendChild(dot);
+          var texts = el("div");
+          var name, desc;
+          if (at) { name = def.name; desc = def.desc + "（" + fmtAchvDate(at) + "）"; }
+          else if (def.secret) { name = "？？？"; desc = "ないしょの実績"; }
+          else { name = def.name; desc = def.hint; }
+          var nm = el("p", "font-letter", name);
+          nm.style.cssText = "margin:0;font-size:15px;color:" + (at ? "var(--paper-text)" : "var(--paper-dim)");
+          texts.appendChild(nm);
+          var ds = el("p", null, desc);
+          ds.style.cssText = "margin:2px 0 0;font-size:12px;line-height:1.7;color:var(--paper-dim)";
+          texts.appendChild(ds);
+          /* 解放済みで再生できる演出がある行だけ「演出を見る」を出す */
+          if (at && typeof def.replay === "function") {
+            var rp = el("button", null, "演出を見る");
+            rp.type = "button";
+            rp.setAttribute("aria-label", "実績『" + def.name + "』の演出をもう一度見る");
+            rp.style.cssText = "margin-top:6px;border-radius:999px;padding:4px 12px;font-size:12px;background:rgba(184,134,11,0.12);color:#8a6d1f;min-height:32px";
+            rp.addEventListener("click", function () {
+              $("achvOverlay").style.display = "none";
+              try { def.replay(); } catch (e) {}
+            });
+            texts.appendChild(rp);
+          }
+          row.appendChild(texts);
+          list.appendChild(row);
+        });
+        sheet.appendChild(list);
+      }
+      function openAchievements() {
+        renderAchievements();
+        $("achvOverlay").style.display = "";
+      }
+      $("achvBtn").addEventListener("click", openAchievements);
+      $("achvOverlay").addEventListener("click", function (e) {
+        if (e.target === this) this.style.display = "none";
+      });
 
       function openLetter(letter) {
         state.opened = letter;
