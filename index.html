@@ -1350,11 +1350,34 @@
           }
         } catch (e) {}
       })();
+      /* 実績解除の匿名カウント：解除した端末から「実績IDだけ」を送り、サーバ側の累計を+1する。
+         端末トークン等の識別情報は送らない。1端末・1実績につき発火は一度だけ（bin_achv_counted_v1 で管理）。
+         送信前に「数えた」印を保存するので、通信に失敗しても二重に数えることはない（取りこぼし側に倒す）。 */
+      var achvCounted = (function () {
+        var d = null;
+        try { d = JSON.parse(window.localStorage.getItem("bin_achv_counted_v1") || "null"); } catch (e) { d = null; }
+        if (!d || typeof d !== "object") d = {};
+        return d;
+      })();
+      function achvCountedSave() {
+        try { window.localStorage.setItem("bin_achv_counted_v1", JSON.stringify(achvCounted)); } catch (e) {}
+      }
+      function achvCount(id) {
+        try {
+          if (!ACHV_DEFS[id] || achvCounted[id]) return;
+          achvCounted[id] = 1;
+          achvCountedSave();
+          rpc("count_achievement", { p_achv_id: id }).then(function () {}, function () {});
+        } catch (e) {}
+      }
+      /* 遡及解放ぶんも含め、解放済みで未カウントのものをここで一度だけ数える */
+      ACHV_ORDER.forEach(function (id) { if (achv.u[id]) achvCount(id); });
       function unlock(id) {
         try {
           if (!ACHV_DEFS[id] || achv.u[id]) return;
           achv.u[id] = new Date().toISOString();
           achvSave();
+          achvCount(id);
           achvToast(ACHV_DEFS[id].name);
         } catch (e) {}
       }
