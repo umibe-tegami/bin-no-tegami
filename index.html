@@ -174,6 +174,51 @@
       }
       .achv-toast.show { opacity: 1; }
 
+      /* ---------- 水平線の向こう（隠し演出：30通でタンカーが来る） ---------- */
+      #tankerLayer {
+        position: absolute; inset: 0; z-index: 2; pointer-events: none;
+        visibility: hidden; overflow: hidden;
+      }
+      #tankerLayer.show { visibility: visible; }
+      #tankerLayer .tanker-ship {
+        position: absolute; left: 96%; width: min(56vw, 340px);
+        opacity: 0; will-change: left, transform, opacity;
+      }
+      #tankerLayer.show .tanker-ship { animation: tanker-cross 11s ease-in-out both; }
+      #tankerLayer .tanker-bob { animation: tanker-bob 3.2s ease-in-out infinite; }
+      #tankerLayer .tanker-smoke {
+        transform-box: fill-box; transform-origin: center bottom;
+        animation: tanker-smoke 3.4s ease-out infinite;
+      }
+      #tankerLayer .tanker-caption {
+        position: absolute; left: 50%; top: 58%; transform: translateX(-50%);
+        margin: 0; max-width: 92%; text-align: center;
+        border-radius: 999px; padding: 8px 18px; font-size: 15px; letter-spacing: 0.06em;
+        background: rgba(20, 34, 48, 0.55); color: #f4f1e6;
+        opacity: 0; pointer-events: none;
+      }
+      #tankerLayer.show .tanker-caption { animation: tanker-caption 11s ease both; }
+      @keyframes tanker-cross {
+        0% { left: 96%; transform: scale(0.45); opacity: 0; }
+        10% { opacity: 0.96; }
+        50% { left: 44%; transform: scale(0.78); opacity: 0.96; }
+        82% { opacity: 0.96; }
+        100% { left: 10%; transform: scale(1.04); opacity: 0; }
+      }
+      @keyframes tanker-bob {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(2.5px); }
+      }
+      @keyframes tanker-smoke {
+        0% { transform: translate(0, 0) scale(0.6); opacity: 0.5; }
+        100% { transform: translate(-7px, -16px) scale(1.5); opacity: 0; }
+      }
+      @keyframes tanker-caption {
+        0%, 42% { opacity: 0; transform: translate(-50%, 6px); }
+        55%, 88% { opacity: 1; transform: translate(-50%, 0); }
+        100% { opacity: 0; transform: translate(-50%, 0); }
+      }
+
       /* ---------- 封印されし召喚（隠し演出） ---------- */
       #exodiaOverlay {
         position: fixed; inset: 0; z-index: 90; display: none;
@@ -274,7 +319,7 @@
         100% { width: 190px; height: 64px; opacity: 0; }
       }
       @media (prefers-reduced-motion: reduce) {
-        .wave-a, .wave-b, .swash, .bottle-btn, .cast-away, .drift-slow, .wash-wave, .glint, .foam-fleck, .sheen, .ripple-ring { animation: none; }
+        .wave-a, .wave-b, .swash, .bottle-btn, .cast-away, .drift-slow, .wash-wave, .glint, .foam-fleck, .sheen, .ripple-ring, .tanker-ship, .tanker-bob, .tanker-smoke, .tanker-caption { animation: none; }
       }
     </style>
   </head>
@@ -302,6 +347,37 @@
           <p class="ripple-msg font-letter" id="rippleMsg" role="status">今、世界のどこかであなたの手紙が読まれています。</p>
           <p class="empty-sea-text" id="emptySeaText">いまは、波の音だけ。</p>
           <div id="beachBottles"></div>
+          <div id="tankerLayer" aria-hidden="true">
+            <div class="tanker-ship" id="tankerShip">
+              <div class="tanker-bob">
+                <svg viewBox="0 0 360 96" width="100%" role="img" aria-label="タンカー船の影" style="display:block">
+                  <ellipse class="tanker-smoke" cx="86" cy="18" rx="7" ry="5" fill="rgba(230,236,240,0.55)" filter="blur(2px)" />
+                  <g fill="#16283c">
+                    <rect x="30" y="30" width="36" height="26" rx="1" />
+                    <rect x="25" y="23" width="46" height="8" rx="1" />
+                    <rect x="76" y="33" width="11" height="21" rx="1" />
+                    <rect x="120" y="44" width="28" height="11" />
+                    <rect x="168" y="44" width="28" height="11" />
+                    <rect x="216" y="44" width="28" height="11" />
+                    <rect x="158" y="30" width="3" height="25" />
+                    <rect x="252" y="30" width="3" height="25" />
+                    <rect x="16" y="53" width="304" height="6" />
+                    <polygon points="10,58 322,58 308,80 36,80" />
+                  </g>
+                  <g fill="#ffd98a" opacity="0.85">
+                    <rect x="35" y="36" width="4" height="4" />
+                    <rect x="44" y="36" width="4" height="4" />
+                    <rect x="53" y="36" width="4" height="4" />
+                    <rect x="35" y="44" width="4" height="4" />
+                    <rect x="44" y="44" width="4" height="4" />
+                    <rect x="53" y="44" width="4" height="4" />
+                  </g>
+                  <ellipse cx="180" cy="84" rx="150" ry="4" fill="rgba(255,255,255,0.35)" filter="blur(2px)" />
+                </svg>
+              </div>
+            </div>
+            <p class="tanker-caption font-letter" id="tankerCaption">無人島に漂着した私は、無事助けられたのだ。</p>
+          </div>
         </section>
 
         <div class="below">
@@ -850,6 +926,8 @@
           state.mineLoaded = true;
           state.mineError = false;
           state.myLetters = res.data;
+          castCountSync(res.data.length);
+          maybeTankerRescue(3600);
           state.myIds = {};
           var total = 0;
           res.data.forEach(function (l) {
@@ -1145,13 +1223,103 @@
         window.setTimeout(function () { ctx.close().catch(function () {}); }, 13500);
       }
 
+      /* ================= 水平線の向こう（隠し仕掛け：手紙を30通流すと助けが来る） ================= */
+      /* 数え方：この端末から流した手紙の累計。送信成功で+1し、サーバ側の「流した手紙」件数とも突き合わせて多い方を残す */
+      var TANKER_GOAL = 30;
+      function castCountLoad() {
+        try {
+          var n = parseInt(window.localStorage.getItem("bin_cast_count") || "0", 10);
+          return isFinite(n) && n > 0 ? n : 0;
+        } catch (e) { return 0; }
+      }
+      function castCountSave(n) {
+        try { window.localStorage.setItem("bin_cast_count", String(n)); } catch (e) {}
+      }
+      function castCountSync(serverCount) {
+        if (typeof serverCount === "number" && serverCount > castCountLoad()) castCountSave(serverCount);
+      }
+      function castCountIncrement() {
+        castCountSave(castCountLoad() + 1);
+      }
+      var tankerScheduled = false;
+      function maybeTankerRescue(delayMs) {
+        try {
+          if (tankerScheduled) return;
+          if (window.localStorage.getItem("bin_tanker_rescued") === "1") return;
+          if (castCountLoad() < TANKER_GOAL) return;
+          tankerScheduled = true;
+          window.setTimeout(function () { tankerRescue(); }, delayMs || 0);
+        } catch (e) {}
+      }
+      function tankerRescue() {
+        try {
+          if (window.localStorage.getItem("bin_tanker_rescued") === "1") return;
+          window.localStorage.setItem("bin_tanker_rescued", "1");
+        } catch (e) {}
+        unlock("tanker_rescue");
+        playTankerScene();
+      }
+      var tankerPlaying = false;
+      function playTankerScene() {
+        if (tankerPlaying) return;
+        var layer = $("tankerLayer");
+        if (!layer) return;
+        tankerPlaying = true;
+        try { closeLetter(); } catch (e) {}
+        try { $("shelfOverlay").style.display = "none"; } catch (e) {}
+        try { $("achvOverlay").style.display = "none"; } catch (e) {}
+        var sea = $("sea"), ship = $("tankerShip");
+        if (sea && ship) {
+          /* 船の喫水線が水平線（海の上端）に合うよう、現在の潮位に合わせて置く */
+          ship.style.top = Math.max(2, sea.offsetTop - Math.round(ship.offsetHeight * 0.74)) + "px";
+        }
+        layer.classList.remove("show");
+        void layer.offsetWidth; /* アニメーションを頭から再生し直す */
+        layer.classList.add("show");
+        playFogHorn();
+        window.setTimeout(function () {
+          layer.classList.remove("show");
+          tankerPlaying = false;
+        }, 11500);
+      }
+      /* 汽笛：自作の低い音（基音＋倍音をローパスで丸め、ゆっくり立ち上げる）を2回 */
+      function playFogHorn() {
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        var ctx = new AC();
+        try { if (ctx.resume) ctx.resume(); } catch (e) {}
+        var master = ctx.createGain(); master.gain.value = 0.55;
+        master.connect(ctx.destination);
+        var t0 = ctx.currentTime + 0.1;
+        function blast(t, dur) {
+          var lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 260; lp.Q.value = 0.4;
+          var g = ctx.createGain();
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(0.5, t + 0.4);
+          g.gain.setValueAtTime(0.5, t + Math.max(0.45, dur - 0.6));
+          g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+          lp.connect(g); g.connect(master);
+          [[73.42, "sine", 1.0], [73.42, "sawtooth", 0.5], [146.83, "sawtooth", 0.22], [110.0, "triangle", 0.3]].forEach(function (spec) {
+            var o = ctx.createOscillator();
+            o.type = spec[1]; o.frequency.value = spec[0];
+            var og = ctx.createGain(); og.gain.value = spec[2];
+            o.connect(og); og.connect(lp);
+            o.start(t); o.stop(t + dur + 0.1);
+          });
+        }
+        blast(t0 + 0.9, 1.8);  /* 遠くで、短く */
+        blast(t0 + 3.8, 2.8);  /* 近づいて、長く */
+        window.setTimeout(function () { ctx.close().catch(function () {}); }, 9000);
+      }
+
       /* ================= 実績（この端末だけの小さな記録） ================= */
       /* 定義：name=名前 / desc=解放後の説明 / hint=未解放時の条件ヒント / secret=未解放時は伏せる / replay=演出の再生関数（任意） */
       var ACHV_DEFS = {
         exodia_part:   { name: "封印のパーツ", desc: "封印のパーツを拾った", hint: "", secret: true },
-        exodia_summon: { name: "召喚者", desc: "五つのパーツを集め、封印を解いた", hint: "", secret: true, replay: exodiaSummon }
+        exodia_summon: { name: "召喚者", desc: "五つのパーツを集め、封印を解いた", hint: "", secret: true, replay: exodiaSummon },
+        tanker_rescue: { name: "水平線の向こう", desc: "手紙を30通流した。水平線の向こうから、助けの船が来た", hint: "", secret: true, replay: playTankerScene }
       };
-      var ACHV_ORDER = ["exodia_part", "exodia_summon"];
+      var ACHV_ORDER = ["exodia_part", "exodia_summon", "tanker_rescue"];
       var achv = (function () {
         var d = null;
         try { d = JSON.parse(window.localStorage.getItem("bin_achv_v1") || "null"); } catch (e) { d = null; }
@@ -1169,6 +1337,15 @@
             var now = new Date().toISOString();
             if (!achv.u.exodia_part) achv.u.exodia_part = now;
             if (!achv.u.exodia_summon) achv.u.exodia_summon = now;
+            achvSave();
+          }
+        } catch (e) {}
+      })();
+      /* 救助された記録が残っていれば、実績をさかのぼって解放する（通知なし） */
+      (function () {
+        try {
+          if (window.localStorage.getItem("bin_tanker_rescued") === "1" && !achv.u.tanker_rescue) {
+            achv.u.tanker_rescue = new Date().toISOString();
             achvSave();
           }
         } catch (e) {}
@@ -1531,6 +1708,8 @@
           $("charCount").textContent = "0 / 300";
           setComposing(false);
           playCastAnimation();
+          castCountIncrement();
+          maybeTankerRescue(3600);
           refreshMine();
         }).catch(function () {
           casting = false;
