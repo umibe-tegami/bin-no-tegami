@@ -174,7 +174,7 @@
       }
       .achv-toast.show { opacity: 1; }
 
-      /* ---------- 水平線の向こう（隠し演出：30通でタンカーが来る） ---------- */
+      /* ---------- 水平線の向こう（隠し演出：15通でタンカーが来る） ---------- */
       #tankerLayer {
         position: absolute; inset: 0; z-index: 2; pointer-events: none;
         visibility: hidden; overflow: hidden;
@@ -1223,9 +1223,9 @@
         window.setTimeout(function () { ctx.close().catch(function () {}); }, 13500);
       }
 
-      /* ================= 水平線の向こう（隠し仕掛け：手紙を30通流すと助けが来る） ================= */
+      /* ================= 水平線の向こう（隠し仕掛け：手紙を15通流すと助けが来る） ================= */
       /* 数え方：この端末から流した手紙の累計。送信成功で+1し、サーバ側の「流した手紙」件数とも突き合わせて多い方を残す */
-      var TANKER_GOAL = 30;
+      var TANKER_GOAL = 15;
       function castCountLoad() {
         try {
           var n = parseInt(window.localStorage.getItem("bin_cast_count") || "0", 10);
@@ -1317,7 +1317,7 @@
       var ACHV_DEFS = {
         exodia_part:   { name: "封印のパーツ", desc: "封印のパーツを拾った", hint: "", secret: true },
         exodia_summon: { name: "召喚者", desc: "五つのパーツを集め、封印を解いた", hint: "", secret: true, replay: exodiaSummon },
-        tanker_rescue: { name: "水平線の向こう", desc: "手紙を30通流した。水平線の向こうから、助けの船が来た", hint: "", secret: true, replay: playTankerScene }
+        tanker_rescue: { name: "水平線の向こう", desc: "手紙を15通流した。水平線の向こうから、助けの船が来た", hint: "", secret: true, replay: playTankerScene }
       };
       var ACHV_ORDER = ["exodia_part", "exodia_summon", "tanker_rescue"];
       var achv = (function () {
